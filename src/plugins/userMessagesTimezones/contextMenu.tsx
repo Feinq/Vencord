@@ -14,8 +14,18 @@ import { ReactElement } from "react";
 
 function CheckmarkIcon() {
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24px" height="24px">
-            <path fill="#ffffff" d="M40.6 12.1L17 35.7 7.4 26.1 4.6 29 17 41.3 43.4 14.9z" />
+        <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+            focusable="false"
+        >
+            <path
+                fill="currentColor"
+                d="M9.0 16.2L4.8 12.0 3.4 13.4 9.0 19.0 21.6 6.4 20.2 5.0z"
+            />
         </svg>
     );
 }
