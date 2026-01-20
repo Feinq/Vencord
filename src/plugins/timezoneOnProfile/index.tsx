@@ -36,7 +36,7 @@ type TimezoneProps = {
 };
 
 const GMT_WHOLE = Array.from({ length: 27 }, (_, i) => {
-    const offset = i - 12; // -12 → +14
+    const offset = i - 12;
 
     const label =
         offset === 0
@@ -73,7 +73,6 @@ const GMT_FRACTION = [
 function parseGmtOffset(label: string): number {
     if (label === "GMT") return 0;
 
-    // Matches: GMT+5, GMT−3, GMT+5:30, GMT+5:45
     const match = label.match(/GMT([+\-−])(\d+)(?::(\d+))?/);
     if (!match) return 0;
 
@@ -153,6 +152,7 @@ const TimezoneTriggerInline = (props: TimezoneProps) => {
     const [selectedTz, setSelectedTz] = useState(getUserTimezone(userId));
     const [currentTime, setCurrentTime] = useState<Date>(new Date(Date.now()));
     const containerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -180,6 +180,15 @@ const TimezoneTriggerInline = (props: TimezoneProps) => {
 
         setCurrentTime(update(selectedTz));
     }, [elapsed, selectedTz]);
+
+    useEffect(() => {
+        if (!open) return;
+
+        requestAnimationFrame(() => {
+            inputRef.current?.focus();
+            inputRef.current?.select();
+        });
+    }, [open]);
 
     const normalizeString = (str: string) => str.replace(/_/g, " ").toLowerCase();
     const showGmt = normalizeString(query).startsWith("gmt");
@@ -252,7 +261,8 @@ const TimezoneTriggerInline = (props: TimezoneProps) => {
                 {open && (
                     <div className="vc-tzonprofile-dropdown">
                         <input
-                            type="text"
+                        ref={ inputRef }
+                        type="text"
                             placeholder="Search or scroll timezones..."
                             value={query}
                             onChange={e => setQuery(e.currentTarget.value)}
