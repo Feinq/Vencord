@@ -16,13 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import {definePluginSettings} from "@api/Settings";
-import {enableStyle} from "@api/Styles";
-import {Devs} from "@utils/constants";
-import {useTimer} from "@utils/react";
-import definePlugin, {OptionType} from "@utils/types";
-import {findByPropsLazy} from "@webpack";
-import {Timestamp, useEffect, useRef, useState} from "@webpack/common";
+import { definePluginSettings } from "@api/Settings";
+import { enableStyle } from "@api/Styles";
+import { Devs } from "@utils/constants";
+import { useTimer } from "@utils/react";
+import definePlugin, { OptionType } from "@utils/types";
+import { findByPropsLazy } from "@webpack";
+import { Timestamp, useEffect, useRef, useState } from "@webpack/common";
 
 import timeZoneStyle from "./style.css?managed";
 
@@ -35,7 +35,7 @@ type TimezoneProps = {
     [key: string]: any;
 };
 
-const GMT_WHOLE = Array.from({length: 27}, (_, i) => {
+const GMT_WHOLE = Array.from({ length: 27 }, (_, i) => {
     const offset = i - 12; // -12 → +14
 
     const label =
@@ -56,15 +56,15 @@ const GMT_WHOLE = Array.from({length: 27}, (_, i) => {
 });
 
 const GMT_FRACTION = [
-    {label: "GMT+3:30", tz: "Asia/Tehran"},
-    {label: "GMT+4:30", tz: "Asia/Kabul"},
-    {label: "GMT+5:30", tz: "Asia/Kolkata"},
-    {label: "GMT+5:45", tz: "Asia/Kathmandu"},
-    {label: "GMT+6:30", tz: "Asia/Yangon"},
-    {label: "GMT+8:45", tz: "Australia/Eucla"},
-    {label: "GMT+9:30", tz: "Australia/Adelaide"},
-    {label: "GMT+10:30", tz: "Australia/Lord_Howe"},
-    {label: "GMT+12:45", tz: "Pacific/Chatham"},
+    { label: "GMT+3:30", tz: "Asia/Tehran" },
+    { label: "GMT+4:30", tz: "Asia/Kabul" },
+    { label: "GMT+5:30", tz: "Asia/Kolkata" },
+    { label: "GMT+5:45", tz: "Asia/Kathmandu" },
+    { label: "GMT+6:30", tz: "Asia/Yangon" },
+    { label: "GMT+8:45", tz: "Australia/Eucla" },
+    { label: "GMT+9:30", tz: "Australia/Adelaide" },
+    { label: "GMT+10:30", tz: "Australia/Lord_Howe" },
+    { label: "GMT+12:45", tz: "Pacific/Chatham" },
 ].map(v => ({
     type: "gmt" as const,
     ...v
@@ -95,7 +95,7 @@ const timezones = [
 ];
 
 function setUserTimezone(userId: string, tz: string) {
-    const store = {...settings.store.timezonesByUser} as Record<string, string>;
+    const store = { ...settings.store.timezonesByUser } as Record<string, string>;
 
     if (!tz) {
         delete store[userId];
@@ -147,7 +147,7 @@ function getUserTimezone(userId: string): string {
 }
 
 const TimezoneTriggerInline = (props: TimezoneProps) => {
-    const {userId, tags} = props;
+    const { userId, tags } = props;
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [selectedTz, setSelectedTz] = useState(getUserTimezone(userId));
@@ -219,7 +219,7 @@ const TimezoneTriggerInline = (props: TimezoneProps) => {
             height="10"
             viewBox="0 0 10 10"
             fill="currentColor"
-            style={{marginLeft: 4, marginBottom: -1}}
+            style={{ marginLeft: 4, marginBottom: -1 }}
         >
             <path d="M0 0l5 8 5-8H0z"/>
         </svg>
