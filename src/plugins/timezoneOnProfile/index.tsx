@@ -16,13 +16,13 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-import { definePluginSettings } from "@api/Settings";
-import { enableStyle } from "@api/Styles";
-import { Devs } from "@utils/constants";
-import { useTimer } from "@utils/react";
-import definePlugin, { OptionType } from "@utils/types";
-import { findByPropsLazy } from "@webpack";
-import { Timestamp, useEffect, useRef, useState } from "@webpack/common";
+import {definePluginSettings} from "@api/Settings";
+import {enableStyle} from "@api/Styles";
+import {Devs} from "@utils/constants";
+import {useTimer} from "@utils/react";
+import definePlugin, {OptionType} from "@utils/types";
+import {findByPropsLazy} from "@webpack";
+import {Timestamp, useEffect, useRef, useState} from "@webpack/common";
 
 import timeZoneStyle from "./style.css?managed";
 
@@ -35,6 +35,59 @@ type TimezoneProps = {
     [key: string]: any;
 };
 
+const GMT_WHOLE = Array.from({length: 27}, (_, i) => {
+    const offset = i - 12; // -12 → +14
+
+    const label =
+        offset === 0
+            ? "GMT"
+            : `GMT${offset > 0 ? "+" : "−"}${Math.abs(offset)}`;
+
+    const tz =
+        offset === 0
+            ? "Etc/UTC"
+            : `Etc/GMT${offset > 0 ? "-" : "+"}${Math.abs(offset)}`;
+
+    return {
+        type: "gmt" as const,
+        label,
+        tz,
+    };
+});
+
+const GMT_FRACTION = [
+    {label: "GMT+3:30", tz: "Asia/Tehran"},
+    {label: "GMT+4:30", tz: "Asia/Kabul"},
+    {label: "GMT+5:30", tz: "Asia/Kolkata"},
+    {label: "GMT+5:45", tz: "Asia/Kathmandu"},
+    {label: "GMT+6:30", tz: "Asia/Yangon"},
+    {label: "GMT+8:45", tz: "Australia/Eucla"},
+    {label: "GMT+9:30", tz: "Australia/Adelaide"},
+    {label: "GMT+10:30", tz: "Australia/Lord_Howe"},
+    {label: "GMT+12:45", tz: "Pacific/Chatham"},
+].map(v => ({
+    type: "gmt" as const,
+    ...v
+}));
+
+function parseGmtOffset(label: string): number {
+    if (label === "GMT") return 0;
+
+    // Matches: GMT+5, GMT−3, GMT+5:30, GMT+5:45
+    const match = label.match(/GMT([+\-−])(\d+)(?::(\d+))?/);
+    if (!match) return 0;
+
+    const sign = match[1] === "-" || match[1] === "−" ? -1 : 1;
+    const hours = Number(match[2]);
+    const minutes = Number(match[3] ?? 0);
+
+    return sign * (hours * 60 + minutes);
+}
+
+const GMT_ALL_SORTED = [...GMT_WHOLE, ...GMT_FRACTION].sort(
+    (a, b) => parseGmtOffset(a.label) - parseGmtOffset(b.label)
+);
+
 const timezones = [
     "— Clear timezone —",
     "UTC",
@@ -42,7 +95,7 @@ const timezones = [
 ];
 
 function setUserTimezone(userId: string, tz: string) {
-    const store = { ...settings.store.timezonesByUser } as Record<string, string>;
+    const store = {...settings.store.timezonesByUser} as Record<string, string>;
 
     if (!tz) {
         delete store[userId];
@@ -94,14 +147,12 @@ function getUserTimezone(userId: string): string {
 }
 
 const TimezoneTriggerInline = (props: TimezoneProps) => {
-    const { userId, tags } = props;
+    const {userId, tags} = props;
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [selectedTz, setSelectedTz] = useState(getUserTimezone(userId));
     const [currentTime, setCurrentTime] = useState<Date>(new Date(Date.now()));
     const containerRef = useRef<HTMLDivElement>(null);
-
-    if (!tags.props.themeType?.startsWith("MODAL") && !selectedTz) return null;
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -131,9 +182,15 @@ const TimezoneTriggerInline = (props: TimezoneProps) => {
     }, [elapsed, selectedTz]);
 
     const normalizeString = (str: string) => str.replace(/_/g, " ").toLowerCase();
-    const filtered = timezones.filter(tz =>
-        normalizeString(tz).includes(normalizeString(query))
-    );
+    const showGmt = normalizeString(query).startsWith("gmt");
+
+    const filtered = showGmt
+        ? GMT_ALL_SORTED.filter(tz =>
+            normalizeString(tz.label).includes(normalizeString(query))
+        )
+        : timezones.filter(tz =>
+            normalizeString(tz).includes(normalizeString(query))
+        );
 
     const handleSelect = (tz: string) => {
         if (tz === "— Clear timezone —") {
@@ -162,7 +219,7 @@ const TimezoneTriggerInline = (props: TimezoneProps) => {
             height="10"
             viewBox="0 0 10 10"
             fill="currentColor"
-            style={{ marginLeft: 4, marginBottom: -1 }}
+            style={{marginLeft: 4, marginBottom: -1}}
         >
             <path d="M0 0l5 8 5-8H0z"/>
         </svg>
@@ -178,6 +235,9 @@ const TimezoneTriggerInline = (props: TimezoneProps) => {
             />
         </span>;
     };
+
+    if (!tags.props.themeType?.startsWith("MODAL") && !selectedTz)
+        return null;
 
     return (
         <>
@@ -198,23 +258,28 @@ const TimezoneTriggerInline = (props: TimezoneProps) => {
                             onChange={e => setQuery(e.currentTarget.value)}
                             className="vc-tzonprofile-search"/>
                         <div className="vc-tzonprofile-list">
-                            {filtered.length > 0 ? filtered.map(tz => (
-                                <div
-                                    key={tz}
-                                    onClick={() => handleSelect(tz)}
-                                    className={
-                                        tz === "— Clear timezone —"
-                                            ? "vc-tzonprofile-item vc-tzonprofile-clear"
-                                            : "vc-tzonprofile-item"
-                                    }
-                                >
-                                    {tz}
-                                </div>
-                            )) : (
+                            {filtered.length > 0 ? filtered.map(tz => {
+                                const label = typeof tz === "string" ? tz : tz.label;
+                                const value = typeof tz === "string" ? tz : tz.tz;
+
+                                return (
+                                    <div
+                                        key={label}
+                                        onClick={() => handleSelect(value)}
+                                        className={
+                                            label === "— Clear timezone —"
+                                                ? "vc-tzonprofile-item vc-tzonprofile-clear"
+                                                : "vc-tzonprofile-item"
+                                        }
+                                    >
+                                        {label}
+                                    </div>
+                                );
+                            }) : (
                                 <div className="vc-tzonprofile-empty">
-                                    No matches.
+                                No matches.
                                 </div>
-                            )}
+                                )}
                         </div>
                     </div>
                 )}
@@ -255,5 +320,3 @@ export default definePlugin({
         }
     ],
 });
-
-// TODO: make sure that TZ is appearing only on the main profile, not on the small popup one
