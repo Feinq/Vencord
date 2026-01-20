@@ -33,7 +33,6 @@
 .vc-tzonprofile-list {
     max-height: 250px;
     overflow-y: auto;
-    width: fit-content;
 }
 
 .vc-tzonprofile-list::-webkit-scrollbar {
@@ -45,6 +44,8 @@
     border-radius: 4px;
     cursor: pointer;
     color: var(--header-primary);
+    display: flex;
+    justify-content: center;
 }
 
 .vc-tzonprofile-item:hover {
