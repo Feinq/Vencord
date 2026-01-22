@@ -17,7 +17,11 @@
 */
 
 import { definePluginSettings } from "@api/Settings";
+import { Paragraph } from "@components/Paragraph";
+import { Span } from "@components/Span";
 import { OptionType } from "@utils/types";
+
+import { formatTimezoneLabel } from "./utils";
 
 export const settings = definePluginSettings({
     timezonesByUser: {
@@ -27,13 +31,25 @@ export const settings = definePluginSettings({
     timeFontSize: {
         type: OptionType.NUMBER,
         description: "The font size of the time.",
-        default: 14,
-        min: 10,
-        max: 20
+        default: 14
     },
     showCurrentTimeOnMessages: {
         type: OptionType.BOOLEAN,
         description: "Show current time next to messages",
         default: false
+    },
+    yourTimezone: {
+        type: OptionType.COMPONENT,
+        component() {
+            const localTimezone = Intl?.DateTimeFormat?.()?.resolvedOptions?.().timeZone ?? "N/A";
+            const display = localTimezone === "N/A" ? "N/A" : formatTimezoneLabel(localTimezone);
+
+            return (
+                <div className="vc-plugins-setting-label">
+                    <Paragraph size="md" weight="medium">Your Timezone</Paragraph>
+                    <Paragraph>Your current timezone is: <Span weight="bold">{display}</Span></Paragraph>
+                </div>
+            );
+        }
     }
 });

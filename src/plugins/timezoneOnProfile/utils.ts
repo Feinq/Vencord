@@ -18,39 +18,6 @@
 
 import { settings } from "./settings";
 
-export const GMT_WHOLE = Array.from({ length: 27 }, (_, i) => {
-    const offset = i - 12;
-    const label = offset === 0 ? "GMT" : `GMT${offset > 0 ? "+" : "−"}${Math.abs(offset)}`;
-    const tz = offset === 0 ? "Etc/UTC" : `Etc/GMT${offset > 0 ? "-" : "+"}${Math.abs(offset)}`;
-    return { type: "gmt" as const, label, tz };
-});
-
-export const GMT_FRACTION = [
-    { label: "GMT+3:30", tz: "Asia/Tehran" },
-    { label: "GMT+4:30", tz: "Asia/Kabul" },
-    { label: "GMT+5:30", tz: "Asia/Kolkata" },
-    { label: "GMT+5:45", tz: "Asia/Kathmandu" },
-    { label: "GMT+6:30", tz: "Asia/Yangon" },
-    { label: "GMT+8:45", tz: "Australia/Eucla" },
-    { label: "GMT+9:30", tz: "Australia/Adelaide" },
-    { label: "GMT+10:30", tz: "Australia/Lord_Howe" },
-    { label: "GMT+12:45", tz: "Pacific/Chatham" },
-].map(v => ({ type: "gmt" as const, ...v }));
-
-function parseGmtOffset(label: string): number {
-    if (label === "GMT") return 0;
-    const match = label.match(/GMT([+\-−])(\d+)(?::(\d+))?/);
-    if (!match) return 0;
-    const sign = match[1] === "-" || match[1] === "−" ? -1 : 1;
-    const hours = Number(match[2]);
-    const minutes = Number(match[3] ?? 0);
-    return sign * (hours * 60 + minutes);
-}
-
-export const GMT_ALL_SORTED = [...GMT_WHOLE, ...GMT_FRACTION].sort(
-    (a, b) => parseGmtOffset(a.label) - parseGmtOffset(b.label)
-);
-
 export function setUserTimezone(userId: string, tz: string) {
     const store = { ...settings.store.timezonesByUser } as Record<string, string>;
     if (!tz) {
@@ -97,4 +64,52 @@ export function update(tz: string): Date {
 
 export function getUserTimezone(userId: string): string {
     return (settings.store.timezonesByUser as unknown as Record<string, string>)[userId] ?? "";
+}
+
+export function getOffsetMinutes(tz: string, when = new Date()): number {
+    try {
+        const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: tz,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false
+        }).formatToParts(when);
+
+        const map = Object.fromEntries(parts.map(p => [p.type, p.value]));
+        const year = parseInt(map.year || "0", 10);
+        const month = parseInt(map.month || "1", 10);
+        const day = parseInt(map.day || "1", 10);
+        const hour = parseInt(map.hour || "0", 10);
+        const minute = parseInt(map.minute || "0", 10);
+        const second = parseInt(map.second || "0", 10);
+
+        const utcForLocal = Date.UTC(year, month - 1, day, hour, minute, second);
+        const diffMs = utcForLocal - when.getTime();
+        return Math.round(diffMs / 60000);
+    } catch (e) {
+        return 0;
+    }
+}
+
+export function offsetLabelFromMinutes(minutes: number) {
+    const sign = minutes >= 0 ? "+" : "-";
+    const abs = Math.abs(minutes);
+    const hours = Math.floor(abs / 60);
+    const mins = abs % 60;
+    return `GMT${sign}${hours}${mins ? `:${String(mins).padStart(2, "0")}` : ""}`;
+}
+
+export function formatTimezoneLabel(tz: string, when = new Date()) {
+    if (!tz) return "None";
+    try {
+        const offset = getOffsetMinutes(tz, when);
+        const offLabel = offsetLabelFromMinutes(offset);
+        return `(${offLabel}) ${tz.replace(/_/g, " ")}`;
+    } catch {
+        return tz.replace(/_/g, " ");
+    }
 }

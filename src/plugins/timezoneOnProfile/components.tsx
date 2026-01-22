@@ -18,14 +18,15 @@
 
 import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { BaseText } from "@components/BaseText";
+import ErrorBoundary from "@components/ErrorBoundary";
 import { closeModal, ModalCloseButton, ModalContent, ModalHeader, ModalRoot, ModalSize, openModal } from "@utils/modal";
 import { useTimer } from "@utils/react";
 import { User } from "@vencord/discord-types";
 import { findByPropsLazy } from "@webpack";
-import { Menu, React, SearchableSelect, Timestamp, useEffect, UserStore,useState } from "@webpack/common";
+import { Menu, React, SearchableSelect, Timestamp, useEffect, UserStore, useState } from "@webpack/common";
 
 import { settings } from "./settings";
-import { getUserTimezone, GMT_ALL_SORTED, setUserTimezone, update } from "./utils";
+import { formatTimezoneLabel, getOffsetMinutes, getUserTimezone, setUserTimezone, update } from "./utils";
 
 const cl = findByPropsLazy("dotSpacer", "userTag");
 
@@ -68,91 +69,57 @@ export const TimezoneTriggerInline = (props: { userId: string;[key: string]: any
 
 export function createTimezoneMenuItems(user: User, currentTimezone: string) {
     const hasTimezone = !!currentTimezone;
-    const gmtMap = new Map(GMT_ALL_SORTED.map(g => [g.tz, g.label]));
     const intlTzs = Intl.supportedValuesOf("timeZone");
-    const remaining = intlTzs.filter(tz => tz !== "UTC" && !gmtMap.has(tz));
-    const orderedTimezones = ["None", "UTC", ...GMT_ALL_SORTED.map(g => g.tz), ...remaining];
 
-    function formatTimezoneLabel(tz: string) {
-        if (tz === "None" || !tz) return "None";
-        if (tz === "UTC") return "UTC (UTC)";
-        try {
-            const abbrPart = new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "short" })
-                .formatToParts(new Date())
-                .find(p => p.type === "timeZoneName")?.value ?? "";
-            return `${tz.replace(/_/g, " ")}${abbrPart ? ` (${abbrPart})` : ""}`;
-        } catch {
-            return tz.replace(/_/g, " ");
-        }
-    }
+    const tzWithOffsets = intlTzs.map(tz => ({ tz, offset: getOffsetMinutes(tz) }));
+    tzWithOffsets.sort((a, b) => {
+        if (a.offset !== b.offset) return a.offset - b.offset;
+        return a.tz.localeCompare(b.tz);
+    });
+
+    const orderedTimezones = ["None", ...tzWithOffsets.map(t => t.tz)];
+
+    const options = orderedTimezones.map(tz => {
+        if (tz === "None") return { label: "None", value: "" };
+        return { label: formatTimezoneLabel(tz), value: tz };
+    });
 
     const openSelectModal = () => {
         const modalKey = openModal(props => (
-            <ModalRoot {...props} size={ModalSize.SMALL}>
+            <ModalRoot {...props} size={ModalSize.SMALL} className="vc-tzonprofile-modal">
                 <ModalHeader>
                     <BaseText tag="h3" size="lg" weight="semibold" style={{ flexGrow: 1 }}>Select Timezone</BaseText>
                     <ModalCloseButton onClick={() => closeModal(modalKey)} />
                 </ModalHeader>
                 <ModalContent>
-                    <div style={{ padding: "4px 0" }}>
-                        {(() => {
-                            const options = orderedTimezones.map(tz => {
-                                if (tz === "None") return { label: "None", value: "" };
-                                if (tz === "UTC") return { label: "UTC (UTC)", value: "UTC" };
-                                const gmtLabel = gmtMap.get(tz);
-                                return { label: gmtLabel || formatTimezoneLabel(tz), value: tz };
-                            });
-                            const selected = options.find(o => o.value === currentTimezone);
-                            return (
-                                <SearchableSelect
-                                    options={options}
-                                    value={selected}
-                                    placeholder="Select a timezone"
-                                    maxVisibleItems={8}
-                                    closeOnSelect={true}
-                                    onChange={(optOrValue: any) => {
-                                        const v = typeof optOrValue === "string" ? optOrValue : optOrValue?.value ?? "";
-                                        try {
-                                            setUserTimezone(user.id, v);
-                                        } catch (error) {
-                                            console.error("[TimezoneOnProfile] Failed to update timezone:", error);
-                                        }
-                                        closeModal(modalKey);
-                                    }}
-                                />
-                            );
-                        })()}
-                    </div>
+                    <ErrorBoundary>
+                        <div style={{ padding: "4px 0" }}>
+                            <SearchableSelect
+                                options={options}
+                                value={options.find(o => o.value === currentTimezone)}
+                                placeholder="Select a timezone"
+                                maxVisibleItems={8}
+                                closeOnSelect={true}
+                                onChange={(optOrValue: any) => {
+                                    const v = typeof optOrValue === "string" ? optOrValue : optOrValue?.value ?? "";
+                                    try { setUserTimezone(user.id, v); }
+                                    catch (e) { console.error("[TimezoneOnProfile] Failed to update timezone:", e); }
+                                    closeModal(modalKey);
+                                }}
+                            />
+                        </div>
+                    </ErrorBoundary>
                 </ModalContent>
             </ModalRoot>
         ));
     };
 
-    const result = [
-        <Menu.MenuItem
-            key="set-timezone"
-            id={hasTimezone ? "change-timezone" : "set-timezone"}
-            label={hasTimezone ? "Change Timezone" : "Set Timezone"}
-            action={openSelectModal}
-        />
-    ];
-
-    if (hasTimezone) {
-        result.push(
-            <Menu.MenuSeparator key="timezone-separator" />,
-            <Menu.MenuItem
-                key="remove-timezone"
-                id="remove-timezone"
-                label="Remove Timezone"
-                color="danger"
-                action={async () => {
-                    try { setUserTimezone(user.id, ""); }
-                    catch (e) { console.error("[TimezoneOnProfile] Failed to remove timezone:", e); }
-                }}
-            />
-        );
-    }
-    return result;
+    return <Menu.MenuItem
+        key="set-timezone"
+        id={hasTimezone ? "change-timezone" : "set-timezone"}
+        label={hasTimezone ? "Change Timezone" : "Set Timezone"}
+        action={openSelectModal}
+    />;
 }
 
 export const UserContextMenuPatch: NavContextMenuPatchCallback = (children, { user }: { user: User; }) => {

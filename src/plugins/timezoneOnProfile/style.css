@@ -17,3 +17,7 @@
     justify-content: center;
     margin: 0;
 }
+
+.vc-tzonprofile-modal {
+    min-height: 140px;
+}
